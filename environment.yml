@@ -7,7 +7,10 @@ dependencies:
   - matplotlib=3.8
   - numpy=1.26
   - pandas=2.2
-  - python=3.12
+  - python=3.11
+  - conda-forge::ffmpeg=7.0
   - scipy=1.13
   - spyder=5.5
+  - pip:
+      - pyaudio==0.2.14
 prefix: C:\Users\skoci\anaconda3\envs\audio-bites
