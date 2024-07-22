@@ -1,0 +1,13 @@
+name: audio-bites
+channels:
+  - defaults
+dependencies:
+  - conda-forge::pydub=0.25
+  - cupy=13.2
+  - matplotlib=3.8
+  - numpy=1.26
+  - pandas=2.2
+  - python=3.12
+  - scipy=1.13
+  - spyder=5.5
+prefix: C:\Users\skoci\anaconda3\envs\audio-bites
