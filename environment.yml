@@ -11,6 +11,9 @@ dependencies:
   - conda-forge::ffmpeg=7.0
   - scipy=1.13
   - spyder=5.5
+  - conda-forge::tqdm=4.66
+  - numba::numba=0.60
+  - conda-forge::numba-progress=1.1
   - pip:
       - pyaudio==0.2.14
 prefix: C:\Users\skoci\anaconda3\envs\audio-bites
