@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib as mpl
 mpl.rcParams['figure.dpi'] = 600
 import matplotlib.pyplot as plt
+from numba import jit
 from paths import audio_file
 from paths import audio_save_folder
 from scipy import signal
@@ -35,27 +36,28 @@ def show_spectra(np_samples):
     plt.show()
 
 
-def decompose_into_frequencies_fft(np_samples,
-                                   sampling_rate, #Hz
-                                   frequency_width=10, #Hz
-                                   list_of_frequencies=[116.54, #Hz
-                                                        138.59,
-                                                        155.56,
-                                                        207.65,
-                                                        233.08]):
+def approximate_with_frequencies_fft(np_samples,
+                                     sampling_rate, #Hz
+                                     frequency_width=10, #Hz
+                                     list_of_frequencies=[116.54, #Hz
+                                                          138.59,
+                                                          155.56,
+                                                          207.65,
+                                                          233.08]):
     pass #TBD calculate fft, then change the fourier impage, then inverse
 
 
-def decompose_into_frequencies(np_samples,
-                               sampling_rate, #Hz
-                               segment_length=100, #ms
-                               frequency_half_width=10, #Hz
-                               list_of_frequencies=[116.54, #Hz
-                                                    138.59,
-                                                    155.56,
-                                                    207.65,
-                                                    233.08]):
+def approximate_with_frequencies(np_samples,
+                                 sampling_rate, #Hz
+                                 segment_length=100, #ms
+                                 frequency_half_width=20, #Hz
+                                 list_of_frequencies=np.array([116.54, #Hz
+                                                               138.59,
+                                                               155.56,
+                                                               207.65,
+                                                               233.08])):
     length_ms = len(np_samples)/sampling_rate*1000
+    number_of_segments = int(len(np_samples)/segment_length)
 
     # generate tones
     synthetic_tracks = []
@@ -67,20 +69,34 @@ def decompose_into_frequencies(np_samples,
     # calculate the coefficients
     smoothing_kernel = 2/(1+np.exp(-50*np.linspace(0,1,segment_length)))-1
     smoothing_kernel *= np.flip(smoothing_kernel)
-    number_of_segments = int(len(np_samples)/segment_length)
+    power_coefficients = np.zeros((number_of_segments,
+                                   len(list_of_frequencies)))
     for segment_number in range(number_of_segments):
         segment = np_samples[segment_number*segment_length:
                              (segment_number+1)*segment_length]
         segment = segment * smoothing_kernel
-        for freq in list_of_frequencies:
-            b, a = signal.butter(3,
+        for i,freq in enumerate(list_of_frequencies):
+            b, a = signal.butter(2,
                                  (freq-frequency_half_width,
                                   freq+frequency_half_width),
                                  'bandpass',
                                  fs=sampling_rate)
             filtered = signal.filtfilt(b, a, segment)
-            plt.plot(filtered)
-            # tbd calculate remaining power
+            power = np.mean(filtered**2)
+            power_coefficients[segment_number,i] = power
+
+    # produce the audio signal based on the coefficients
+    x_full = np.arange(len(np_samples))
+    x_reduced = np.linspace(0,x_full[-1],num=number_of_segments)
+    np_samples_output = np.zeros(len(np_samples))
+    for i,freq in enumerate(list_of_frequencies):
+        oversampled_coefficients = np.interp(x_full,
+                                             x_reduced,
+                                             power_coefficients[:,i])
+        modulated_tone = synthetic_tracks[i] * oversampled_coefficients
+        np_samples_output = np_samples_output + modulated_tone
+
+    return np_samples_output
 
 
 
@@ -89,6 +105,13 @@ def decompose_into_frequencies(np_samples,
 if __name__ == "__main__":
     np_samples = load_mp3_size_limit(audio_file)
     sampling_rate=get_sampling(audio_file)
+
+    approximated = approximate_with_frequencies(np_samples,sampling_rate)
+    save_wav(approximated,
+             sampling_rate,
+             folder=audio_save_folder,
+             name="approximated.wav")
+
 
     show_spectra(np_samples)
 
