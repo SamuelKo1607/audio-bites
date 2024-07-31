@@ -44,7 +44,7 @@ def approximate_with_frequencies_fft(np_samples,
                                                           155.56,
                                                           207.65,
                                                           233.08]):
-    pass #TBD calculate fft, then change the fourier impage, then inverse
+    pass #TBD calculate fft, then change the fourier image, then inverse
 
 
 def approximate_with_frequencies(np_samples,
@@ -57,23 +57,25 @@ def approximate_with_frequencies(np_samples,
                                                                207.65,
                                                                233.08])):
     length_ms = len(np_samples)/sampling_rate*1000
-    number_of_segments = int(len(np_samples)/segment_length)
+    number_of_segments = int(length_ms/segment_length)
+    segment_length_samples = int(sampling_rate/1000*segment_length)
 
     # generate tones
     synthetic_tracks = []
     for freq in list_of_frequencies:
         a = np.linspace(0,length_ms,len(np_samples))
-        tone = np.sin(a*freq*2*np.pi)
+        tone = np.sin(a*freq/1000*2*np.pi)
         synthetic_tracks.append(tone)
 
     # calculate the coefficients
-    smoothing_kernel = 2/(1+np.exp(-50*np.linspace(0,1,segment_length)))-1
+    smoothing_kernel = 2/(1+np.exp(-50*np.linspace(0,1,
+                                                   segment_length_samples)))-1
     smoothing_kernel *= np.flip(smoothing_kernel)
     power_coefficients = np.zeros((number_of_segments,
                                    len(list_of_frequencies)))
     for segment_number in range(number_of_segments):
-        segment = np_samples[segment_number*segment_length:
-                             (segment_number+1)*segment_length]
+        segment = np_samples[segment_number*segment_length_samples:
+                             (segment_number+1)*segment_length_samples]
         segment = segment * smoothing_kernel
         for i,freq in enumerate(list_of_frequencies):
             b, a = signal.butter(2,
@@ -96,13 +98,21 @@ def approximate_with_frequencies(np_samples,
         modulated_tone = synthetic_tracks[i] * oversampled_coefficients
         np_samples_output = np_samples_output + modulated_tone
 
-    return np_samples_output
+    # lo-pass to get rid of the mess
+    b, a = signal.butter(4,
+                         list_of_frequencies[-1]*1.2,
+                         'lowpass',
+                         fs=sampling_rate)
+    lopassed = signal.filtfilt(b, a, np_samples_output)
+
+    return lopassed
 
 
 
 
 #%%
 if __name__ == "__main__":
+
     np_samples = load_mp3_size_limit(audio_file)
     sampling_rate=get_sampling(audio_file)
 
@@ -112,8 +122,8 @@ if __name__ == "__main__":
              folder=audio_save_folder,
              name="approximated.wav")
 
-
     show_spectra(np_samples)
+    show_spectra(approximated)
 
     noisy = add_white_noise(np_samples)
     save_wav(noisy,
